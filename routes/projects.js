@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
 const auth = require('../middleware/auth');
+const admin = require('../middleware/admin');
 
 // Get all projects for current user
 router.get('/', auth, async (req, res) => {
   try {
-    const projects = await Project.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    const projects = await Project.find({}).sort({ createdAt: -1 });
     res.json(projects);
   } catch (err) {
     console.error(err.message);
@@ -14,8 +15,8 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Create a new project
-router.post('/', auth, async (req, res) => {
+// Create a new project (Admin Only)
+router.post('/', [auth, admin], async (req, res) => {
   try {
     const { name, clientOrTask } = req.body;
     

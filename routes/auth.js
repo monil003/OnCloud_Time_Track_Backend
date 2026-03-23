@@ -15,10 +15,13 @@ router.post('/register', async (req, res) => {
     user = new User({ name, email, password });
     await user.save();
 
-    const payload = { userId: user._id };
+    const payload = { 
+      userId: user._id,
+      role: user.role
+    };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -39,10 +42,13 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid Credentials' });
     }
 
-    const payload = { userId: user._id };
+    const payload = { 
+      userId: user._id,
+      role: user.role
+    };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
