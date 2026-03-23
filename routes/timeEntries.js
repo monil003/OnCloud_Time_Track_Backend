@@ -55,13 +55,16 @@ router.post('/', auth, async (req, res) => {
 // Get all time entries for all users (Admin Only)
 router.get('/admin', [auth, admin], async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, userId } = req.query;
     let query = {};
     if (startDate && endDate) {
       query.date = {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       };
+    }
+    if (userId) {
+      query.userId = userId;
     }
     const entries = await TimeEntry.find(query)
       .populate('userId', 'name email')

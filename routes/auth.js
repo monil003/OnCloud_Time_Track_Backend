@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const admin = require('../middleware/admin');
 
 // Register
 router.post('/register', async (req, res) => {
@@ -64,6 +65,17 @@ router.get('/me', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Get All Users (Admin Only)
+router.get('/', [auth, admin], async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
