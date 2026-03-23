@@ -74,4 +74,56 @@ router.get('/admin', [auth, admin], async (req, res) => {
   }
 });
 
+// Update a time entry
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { projectId, taskType, date, duration, notes } = req.body;
+    let entry = await TimeEntry.findById(req.params.id);
+
+    if (!entry) {
+      return res.status(404).json({ message: 'Time entry not found' });
+    }
+
+    // Check if user owns the entry or is admin
+    if (entry.userId.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    entry.projectId = projectId || entry.projectId;
+    entry.taskType = taskType || entry.taskType;
+    entry.date = date || entry.date;
+    entry.duration = duration || entry.duration;
+    entry.notes = notes || entry.notes;
+
+    await entry.save();
+    await entry.populate('projectId', 'name clientOrTask');
+    res.json(entry);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Delete a time entry
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const entry = await TimeEntry.findById(req.params.id);
+
+    if (!entry) {
+      return res.status(404).json({ message: 'Time entry not found' });
+    }
+
+    // Check if user owns the entry or is admin
+    if (entry.userId.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    await TimeEntry.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Time entry removed' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
