@@ -9,7 +9,11 @@ const UserSchema = new Schema({
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   assignedProjects: [{ type: Schema.Types.ObjectId, ref: 'Project' }],
-  // OTP reset fields
+  // Email verification
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerifyOtp: { type: String, default: null },
+  emailVerifyOtpExpiry: { type: Date, default: null },
+  // Password reset OTP fields
   resetOtp: { type: String, default: null },
   resetOtpExpiry: { type: Date, default: null },
   resetOtpVerified: { type: Boolean, default: false }

@@ -16,7 +16,7 @@ const getTransporter = () => nodemailer.createTransport({
   },
 });
 
-// Register
+// Register — creates unverified account and sends email OTP
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -25,23 +25,114 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    user = new User({ name, email, password });
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+    user = new User({
+      name,
+      email,
+      password,
+      isEmailVerified: false,
+      emailVerifyOtp: hashedOtp,
+      emailVerifyOtpExpiry: otpExpiry,
+    });
     await user.save();
 
-    const payload = {
-      userId: user._id,
-      role: user.role
-    };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
+    // Send verification email
+    await getTransporter().sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Verify your email — OnCloud Time',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f8fafc; border-radius: 16px;">
+          <h2 style="color: #1e293b; margin-bottom: 8px;">Welcome to OnCloud Time, ${name}!</h2>
+          <p style="color: #64748b; font-size: 15px; margin-bottom: 24px;">Please verify your email address using the code below. It expires in <strong>10 minutes</strong>.</p>
+          <div style="background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+            <span style="font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #f36c21; font-family: monospace;">${otp}</span>
+          </div>
+          <p style="color: #94a3b8; font-size: 13px;">If you didn't create an account, you can ignore this email.</p>
+        </div>
+      `,
+    });
 
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.status(201).json({ requiresVerification: true, email });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
   }
 });
 
-// Login
+// Verify Email OTP — POST /api/auth/verify-email
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || !user.emailVerifyOtp || !user.emailVerifyOtpExpiry) {
+      return res.status(400).json({ message: 'Invalid or expired code. Please register again.' });
+    }
+    if (new Date() > user.emailVerifyOtpExpiry) {
+      return res.status(400).json({ message: 'Code expired. Please request a new one.' });
+    }
+    const hashedInput = crypto.createHash('sha256').update(otp).digest('hex');
+    if (hashedInput !== user.emailVerifyOtp) {
+      return res.status(400).json({ message: 'Incorrect code. Please try again.' });
+    }
+
+    // Mark verified and clear OTP
+    user.isEmailVerified = true;
+    user.emailVerifyOtp = null;
+    user.emailVerifyOtpExpiry = null;
+    await user.save();
+
+    // Auto-login: return JWT
+    const payload = { userId: user._id, role: user.role };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Resend Verification OTP — POST /api/auth/resend-verification
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    if (user.isEmailVerified) return res.status(400).json({ message: 'Email already verified.' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.emailVerifyOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    user.emailVerifyOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await getTransporter().sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'New verification code — OnCloud Time',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f8fafc; border-radius: 16px;">
+          <h2 style="color: #1e293b; margin-bottom: 8px;">New Verification Code</h2>
+          <p style="color: #64748b; font-size: 15px; margin-bottom: 24px;">Your new code expires in <strong>10 minutes</strong>.</p>
+          <div style="background: white; border: 2px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+            <span style="font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #f36c21; font-family: monospace;">${otp}</span>
+          </div>
+        </div>
+      `,
+    });
+
+    res.json({ message: 'New verification code sent.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Login — blocks unverified accounts
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -53,6 +144,15 @@ router.post('/login', async (req, res) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid Credentials' });
+    }
+
+    // Block login if email not verified
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        requiresVerification: true,
+        email: user.email,
+        message: 'Please verify your email before signing in.'
+      });
     }
 
     const payload = {
