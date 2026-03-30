@@ -1,14 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 
 // Get all projects for current user
 router.get('/', auth, async (req, res) => {
   try {
-    const projects = await Project.find({}).sort({ createdAt: -1 });
-    res.json(projects);
+    if (req.user.role === 'admin') {
+      const projects = await Project.find({}).sort({ createdAt: -1 });
+      res.json(projects);
+    } else {
+      const user = await User.findById(req.user.userId).populate('assignedProjects');
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      // Sort assigned projects by creation date if possible, or just return them
+      const sortedProjects = [...user.assignedProjects].sort((a, b) => b.createdAt - a.createdAt);
+      res.json(sortedProjects);
+    }
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

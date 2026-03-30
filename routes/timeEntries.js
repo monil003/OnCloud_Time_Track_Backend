@@ -34,6 +34,17 @@ router.post('/', auth, async (req, res) => {
   try {
     const { projectId, taskType, date, duration, notes } = req.body;
 
+    // Validate project assignment for non-admins
+    if (req.user.role !== 'admin') {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.userId);
+      const isAssigned = user.assignedProjects.some(id => id.toString() === projectId);
+      
+      if (!isAssigned) {
+        return res.status(403).json({ message: 'Access denied: This project is not assigned to you' });
+      }
+    }
+
     const newEntry = new TimeEntry({
       userId: req.user.userId,
       projectId,
