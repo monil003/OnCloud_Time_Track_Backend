@@ -1,3 +1,4 @@
+require('dotenv').config();
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
@@ -10,7 +11,7 @@ var projectsRouter = require('./routes/projects');
 var timeEntriesRouter = require('./routes/timeEntries');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+
 
 var app = express();
 
