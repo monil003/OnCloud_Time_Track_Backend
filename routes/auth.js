@@ -23,13 +23,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-console.log(transporter);
-console.log('email', process.env.EMAIL_USER);
-console.log('password', process.env.EMAIL_PASS);
-
-// monildumasia@gmail.com
-// fzay fjmm feig qxzy
-
 // Register
 router.post('/register', async (req, res) => {
   try {
