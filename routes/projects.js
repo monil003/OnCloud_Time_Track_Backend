@@ -29,11 +29,12 @@ router.get('/', auth, async (req, res) => {
 // Create a new project (Admin Only)
 router.post('/', [auth, admin], async (req, res) => {
   try {
-    const { name, clientOrTask } = req.body;
+    const { name, clientOrTask, subTasks } = req.body;
     
     const newProject = new Project({
       name,
       clientOrTask,
+      subTasks: Array.isArray(subTasks) ? subTasks : [],
       userId: req.user.userId
     });
 
@@ -48,7 +49,7 @@ router.post('/', [auth, admin], async (req, res) => {
 // Update a project (Admin Only)
 router.put('/:id', [auth, admin], async (req, res) => {
   try {
-    const { name, clientOrTask } = req.body;
+    const { name, clientOrTask, subTasks } = req.body;
     let project = await Project.findById(req.params.id);
 
     if (!project) {
@@ -56,7 +57,10 @@ router.put('/:id', [auth, admin], async (req, res) => {
     }
 
     project.name = name || project.name;
-    project.clientOrTask = clientOrTask || project.clientOrTask;
+    project.clientOrTask = clientOrTask !== undefined ? clientOrTask : project.clientOrTask;
+    if (Array.isArray(subTasks)) {
+      project.subTasks = subTasks;
+    }
 
     await project.save();
     res.json(project);
