@@ -28,7 +28,7 @@ router.post('/register', async (req, res) => {
     user = new User({ name, email, password });
     await user.save();
 
-    const payload = { 
+    const payload = {
       userId: user._id,
       role: user.role
     };
@@ -55,7 +55,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid Credentials' });
     }
 
-    const payload = { 
+    const payload = {
       userId: user._id,
       role: user.role
     };
@@ -143,7 +143,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Send email
     await transporter.sendMail({
-      from: `"OnCloud Time" <${process.env.EMAIL_USER}>`,
+      from: `${process.env.EMAIL_USER}`,
       to: email,
       subject: 'Your Password Reset OTP — OnCloud Time',
       html: `
