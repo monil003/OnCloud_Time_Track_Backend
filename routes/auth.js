@@ -8,13 +8,27 @@ const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 
 // ---- Email transporter ----
+// const transporter = nodemailer.createTransport({
+//   service: 'gmail',
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: 'monildumasia@gmail.com',
+    pass: 'fzay fjmm feig qxzy',
   },
 });
+
+console.log(transporter);
+console.log('email', process.env.EMAIL_USER);
+console.log('password', process.env.EMAIL_PASS);
+
+// monildumasia@gmail.com
+// fzay fjmm feig qxzy
 
 // Register
 router.post('/register', async (req, res) => {
@@ -143,7 +157,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Send email
     await transporter.sendMail({
-      from: `${process.env.EMAIL_USER}`,
+      from: 'monildumasia@gmail.com',
       to: email,
       subject: 'Your Password Reset OTP — OnCloud Time',
       html: `
