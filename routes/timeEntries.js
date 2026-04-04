@@ -140,7 +140,7 @@ router.post('/email-timesheet', auth, async (req, res) => {
     }
 
     const entries = await TimeEntry.find(query)
-      .populate('projectId', 'name')
+      .populate('projectId', 'name clientOrTask')
       .sort({ date: 1 });
 
     if (entries.length === 0) {
@@ -153,12 +153,20 @@ router.post('/email-timesheet', auth, async (req, res) => {
 
     let tableRows = '';
     let totalMins = 0;
+    
+    let csvContent = 'Date,Project,Client,Sub Task,Hours,Notes\n';
 
     entries.forEach(entry => {
       const dateStr = new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const projName = entry.projectId ? entry.projectId.name : 'Internal';
       const durationStr = `${Math.floor(entry.duration / 60)}:${(entry.duration % 60).toString().padStart(2, '0')}`;
       totalMins += entry.duration;
+
+      const dateForCsv = new Date(entry.date).toISOString().split('T')[0];
+      const clientName = entry.projectId?.clientOrTask || '';
+      const hoursCsv = (entry.duration / 60).toFixed(2);
+      const notesCsv = (entry.notes || '').replace(/"/g, '""').replace(/\n/g, ' | ');
+      csvContent += `"${dateForCsv}","${projName}","${clientName}","${entry.taskType}",${hoursCsv},"${notesCsv}"\n`;
 
       tableRows += `
         <tr>
@@ -205,6 +213,12 @@ router.post('/email-timesheet', auth, async (req, res) => {
       to: targetUser.email,
       subject: `Timesheet Summary: ${startDate} to ${endDate} — OnCloud Time`,
       html: html,
+      attachments: [
+        {
+          filename: `Timesheet_${startDate}_to_${endDate}.csv`,
+          content: csvContent
+        }
+      ]
     });
 
     res.json({ message: 'Email sent successfully!' });
