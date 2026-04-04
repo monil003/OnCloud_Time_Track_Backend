@@ -32,7 +32,7 @@ cron.schedule('59 23 * * 0', async () => {
       const entries = await TimeEntry.find({
         userId: user._id,
         date: { $gte: startDate, $lte: endDate }
-      }).populate('projectId', 'name').sort({ date: 1 });
+      }).populate('projectId', 'name clientOrTask').sort({ date: 1 });
 
       if (entries.length === 0) {
         continue; // Skip silently if no entries logged
@@ -40,12 +40,19 @@ cron.schedule('59 23 * * 0', async () => {
 
       let tableRows = '';
       let totalMins = 0;
+      let csvContent = 'Date,Project,Client,Sub Task,Hours,Notes\n';
 
       entries.forEach(entry => {
         const dateStr = new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const projName = entry.projectId ? entry.projectId.name : 'Internal';
         const durationStr = `${Math.floor(entry.duration / 60)}:${(entry.duration % 60).toString().padStart(2, '0')}`;
         totalMins += entry.duration;
+
+        const dateForCsv = new Date(entry.date).toISOString().split('T')[0];
+        const clientName = entry.projectId?.clientOrTask || '';
+        const hoursCsv = (entry.duration / 60).toFixed(2);
+        const notesCsv = (entry.notes || '').replace(/"/g, '""').replace(/\n/g, ' | ');
+        csvContent += `"${dateForCsv}","${projName}","${clientName}","${entry.taskType}",${hoursCsv},"${notesCsv}"\n`;
 
         tableRows += `
           <tr>
@@ -92,6 +99,12 @@ cron.schedule('59 23 * * 0', async () => {
         to: user.email,
         subject: 'Your Weekly Timesheet Summary — OnCloud Time',
         html: html,
+        attachments: [
+          {
+            filename: 'Weekly_Timesheet.csv',
+            content: csvContent
+          }
+        ]
       });
     }
 
