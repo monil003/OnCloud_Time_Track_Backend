@@ -35,6 +35,9 @@ mongoose.connection.on('disconnected', () => {
   console.log('Mongoose disconnected');
 });
 
+// Initialize background jobs
+require('./jobs/weeklyTimesheet');
+
 app.use(cors());
 app.use(logger('dev'));
 app.use(express.json());
