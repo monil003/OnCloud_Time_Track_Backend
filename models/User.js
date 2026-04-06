@@ -16,7 +16,8 @@ const UserSchema = new Schema({
   // Password reset OTP fields
   resetOtp: { type: String, default: null },
   resetOtpExpiry: { type: Date, default: null },
-  resetOtpVerified: { type: Boolean, default: false }
+  resetOtpVerified: { type: Boolean, default: false },
+  active: { type: Boolean, default: true }
 }, {
   timestamps: true
 });

@@ -6,11 +6,23 @@ const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 
 // @route    GET /api/users
-// @desc     Get all employees (Admin Only)
+// @desc     Get employees (Admin Only)
 // @access   Private/Admin
 router.get('/', [auth, admin], async (req, res) => {
   try {
-    const users = await User.find({ role: 'user' }).select('-password').populate('assignedProjects');
+    const { status } = req.query;
+    let query = { role: 'user' };
+
+    if (status === 'inactive') {
+      query.active = false;
+    } else if (status === 'all') {
+      // No extra query for status
+    } else {
+      // Default to active only
+      query.active = { $ne: false };
+    }
+
+    const users = await User.find(query).select('-password').populate('assignedProjects');
     res.json(users);
   } catch (err) {
     console.error(err.message);
@@ -42,24 +54,22 @@ router.put('/:id/assign-projects', [auth, admin], async (req, res) => {
   }
 });
 
-// @route    DELETE /api/users/:id
-// @desc     Delete an employee and their time entries (Admin Only)
+// @route    PUT /api/users/:id/status
+// @desc     Toggle employee active status (Admin Only)
 // @access   Private/Admin
-router.delete('/:id', [auth, admin], async (req, res) => {
+router.put('/:id/status', [auth, admin], async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const { active } = req.body;
+    let user = await User.findById(req.params.id);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Delete all time entries for this user
-    await TimeEntry.deleteMany({ userId: req.params.id });
-
-    // Delete the user
-    await User.findByIdAndDelete(req.params.id);
-
-    res.json({ message: 'User and associated time entries deleted successfully' });
+    user.active = active;
+    await user.save();
+    
+    res.json({ message: `User ${active ? 'activated' : 'deactivated'} successfully`, user });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

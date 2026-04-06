@@ -155,6 +155,13 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Block login if account is inactive
+    if (user.active === false) {
+      return res.status(403).json({
+        message: 'Your account is inactive. Please contact your administrator.'
+      });
+    }
+
     const payload = {
       userId: user._id,
       role: user.role
