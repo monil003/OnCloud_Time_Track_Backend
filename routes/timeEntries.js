@@ -17,7 +17,7 @@ const getTransporter = () => nodemailer.createTransport({
 // Get all time entries for user
 router.get('/', auth, async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, sort } = req.query;
     
     let query = { userId: req.user.userId };
     
@@ -31,9 +31,11 @@ router.get('/', auth, async (req, res) => {
       };
     }
 
+    const sortOrder = sort === 'desc' ? -1 : 1;
+
     const entries = await TimeEntry.find(query)
       .populate('projectId', 'name clientOrTask')
-      .sort({ date: -1 });
+      .sort({ date: sortOrder });
       
     res.json(entries);
   } catch (err) {
@@ -231,7 +233,7 @@ router.post('/email-timesheet', auth, async (req, res) => {
 // Get all time entries for all users (Admin Only)
 router.get('/admin', [auth, admin], async (req, res) => {
   try {
-    const { startDate, endDate, userId, projectId } = req.query;
+    const { startDate, endDate, userId, projectId, sort } = req.query;
     let query = {};
     if (startDate && endDate) {
       const endD = new Date(endDate);
@@ -248,10 +250,13 @@ router.get('/admin', [auth, admin], async (req, res) => {
     if (projectId) {
       query.projectId = projectId;
     }
+
+    const sortOrder = sort === 'desc' ? -1 : 1;
+
     const entries = await TimeEntry.find(query)
       .populate('userId', 'name email')
       .populate('projectId', 'name clientOrTask')
-      .sort({ date: -1 });
+      .sort({ date: sortOrder });
     res.json(entries);
   } catch (err) {
     console.error(err.message);
