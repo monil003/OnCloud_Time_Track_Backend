@@ -22,12 +22,12 @@ router.get('/', auth, async (req, res) => {
     let query = { userId: req.user.userId };
     
     if (startDate && endDate) {
-      const endD = new Date(endDate);
-      endD.setHours(23, 59, 59, 999);
+      const sD = new Date(`${startDate}T00:00:00Z`);
+      const eD = new Date(`${endDate}T23:59:59.999Z`);
       
       query.date = {
-        $gte: new Date(startDate),
-        $lte: endD
+        $gte: sD,
+        $lte: eD
       };
     }
 
@@ -236,12 +236,12 @@ router.get('/admin', [auth, admin], async (req, res) => {
     const { startDate, endDate, userId, projectId, sort } = req.query;
     let query = {};
     if (startDate && endDate) {
-      const endD = new Date(endDate);
-      endD.setHours(23, 59, 59, 999);
+      const sD = new Date(`${startDate}T00:00:00Z`);
+      const eD = new Date(`${endDate}T23:59:59.999Z`);
       
       query.date = {
-        $gte: new Date(startDate),
-        $lte: endD
+        $gte: sD,
+        $lte: eD
       };
     }
     if (userId) {
