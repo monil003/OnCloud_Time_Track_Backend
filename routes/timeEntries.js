@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const nodemailer = require('nodemailer');
 const TimeEntry = require('../models/TimeEntry');
-const TimesheetInstruction = require('../models/TimesheetInstruction');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 
@@ -13,55 +12,6 @@ const getTransporter = () => nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
-});
-
-// Get timesheet instructions
-router.get('/instructions', auth, async (req, res) => {
-  try {
-    const { startDate, endDate, userId } = req.query;
-
-    if (!startDate || !endDate || !userId) {
-      return res.status(400).json({ message: 'Missing required parameters: startDate, endDate, userId' });
-    }
-
-    // A normal user can only view their own timesheet instructions
-    if (req.user.role !== 'admin' && req.user.userId !== userId) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const doc = await TimesheetInstruction.findOne({ userId, startDate, endDate });
-    res.json({ instructions: doc ? doc.instructions : '' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
-  }
-});
-
-// Save timesheet instructions
-router.post('/instructions', auth, async (req, res) => {
-  try {
-    const { startDate, endDate, userId, instructions } = req.body;
-
-    if (!startDate || !endDate || !userId) {
-      return res.status(400).json({ message: 'Missing required parameters: startDate, endDate, userId' });
-    }
-
-    // A normal user can only update their own timesheet instructions
-    if (req.user.role !== 'admin' && req.user.userId !== userId) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const doc = await TimesheetInstruction.findOneAndUpdate(
-      { userId, startDate, endDate },
-      { instructions: instructions || '' },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-
-    res.json(doc);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
-  }
 });
 
 // Get all time entries for user
@@ -97,7 +47,7 @@ router.get('/', auth, async (req, res) => {
 // Create a new time entry
 router.post('/', auth, async (req, res) => {
   try {
-    const { projectId, taskType, date, duration, notes } = req.body;
+    const { projectId, taskType, date, duration, notes, timesheetInstructions } = req.body;
 
     // Validate project assignment for non-admins
     if (req.user.role !== 'admin') {
@@ -116,7 +66,8 @@ router.post('/', auth, async (req, res) => {
       taskType,
       date,
       duration,
-      notes
+      notes,
+      timesheetInstructions
     });
 
     const entry = await newEntry.save();
@@ -155,7 +106,8 @@ router.post('/import', auth, async (req, res) => {
       taskType: e.taskType,
       date: new Date(e.date),
       duration: e.duration,
-      notes: e.notes || ''
+      notes: e.notes || '',
+      timesheetInstructions: e.timesheetInstructions || ''
     }));
 
     const inserted = await TimeEntry.insertMany(newEntries);
@@ -317,7 +269,7 @@ router.get('/admin', [auth, admin], async (req, res) => {
 // Update a time entry
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { projectId, taskType, date, duration, notes } = req.body;
+    const { projectId, taskType, date, duration, notes, timesheetInstructions } = req.body;
     let entry = await TimeEntry.findById(req.params.id);
 
     if (!entry) {
@@ -333,7 +285,8 @@ router.put('/:id', auth, async (req, res) => {
     entry.taskType = taskType || entry.taskType;
     entry.date = date || entry.date;
     entry.duration = duration || entry.duration;
-    entry.notes = notes || entry.notes;
+    entry.notes = notes !== undefined ? notes : entry.notes;
+    entry.timesheetInstructions = timesheetInstructions !== undefined ? timesheetInstructions : entry.timesheetInstructions;
 
     await entry.save();
     await entry.populate('projectId', 'name clientOrTask');

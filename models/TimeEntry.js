@@ -8,7 +8,8 @@ const TimeEntrySchema = new Schema({
   taskType: { type: String, required: true }, // e.g. "Programming", "NetSuite Support"
   date: { type: Date, required: true },
   duration: { type: Number, required: true }, // duration in minutes
-  notes: { type: String, default: '' }
+  notes: { type: String, default: '' },
+  timesheetInstructions: { type: String, default: '' }
 }, {
   timestamps: true
 });
