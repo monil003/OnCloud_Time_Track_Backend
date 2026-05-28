@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const nodemailer = require('nodemailer');
 const TimeEntry = require('../models/TimeEntry');
+const TimesheetInstruction = require('../models/TimesheetInstruction');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 
@@ -12,6 +13,55 @@ const getTransporter = () => nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+});
+
+// Get timesheet instructions
+router.get('/instructions', auth, async (req, res) => {
+  try {
+    const { startDate, endDate, userId } = req.query;
+
+    if (!startDate || !endDate || !userId) {
+      return res.status(400).json({ message: 'Missing required parameters: startDate, endDate, userId' });
+    }
+
+    // A normal user can only view their own timesheet instructions
+    if (req.user.role !== 'admin' && req.user.userId !== userId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const doc = await TimesheetInstruction.findOne({ userId, startDate, endDate });
+    res.json({ instructions: doc ? doc.instructions : '' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Save timesheet instructions
+router.post('/instructions', auth, async (req, res) => {
+  try {
+    const { startDate, endDate, userId, instructions } = req.body;
+
+    if (!startDate || !endDate || !userId) {
+      return res.status(400).json({ message: 'Missing required parameters: startDate, endDate, userId' });
+    }
+
+    // A normal user can only update their own timesheet instructions
+    if (req.user.role !== 'admin' && req.user.userId !== userId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const doc = await TimesheetInstruction.findOneAndUpdate(
+      { userId, startDate, endDate },
+      { instructions: instructions || '' },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json(doc);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 });
 
 // Get all time entries for user
